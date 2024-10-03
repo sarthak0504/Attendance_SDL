@@ -1,7 +1,7 @@
 import pandas as pd
 import time
 import os
-
+import sys
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
@@ -12,16 +12,18 @@ from selenium.webdriver.support import expected_conditions as EC
 from gtts import gTTS
 import pyautogui
 
-
-
-
-
 # Setup the WebDriver
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
 baseurl = "https://web.whatsapp.com"
 
-file_path = 'students_data2.xlsx'
-# file_path = 'path_to_uploaded_file.xlsx'
+if len(sys.argv) < 2:
+    print("Error: No file path provided.")
+    sys.exit(1)
+
+file_path = sys.argv[1]
+if not os.path.exists(file_path):
+    print(f"Error: File does not exist at {file_path}")
+    sys.exit(1)
 
 information_df = pd.read_excel(file_path, sheet_name='Information')
 # print(information_df.columns)
@@ -31,7 +33,9 @@ Subject1 = information_df.loc[0, 'Subject1']
 Subject2 = information_df.loc[0, 'Subject2']
 Subject3 = information_df.loc[0, 'Subject3']
 Subject4 = information_df.loc[0, 'Subject4']
-AudioDirectory = information_df.loc[0, 'AudioDirectoryPath']
+# AudioDirectory = information_df.loc[0, 'AudioDirectoryPath']
+script_directory = os.path.dirname(os.path.abspath(__file__))
+AudioDirectory = os.path.join(script_directory, "Audio_sms")
 print(AudioDirectory)
 
 # Load the individual sheets into dataframes

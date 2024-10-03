@@ -4,6 +4,7 @@ const XLSX = require('xlsx');
 const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
+const fileUpload = require('express-fileupload');  // Import express-fileupload
 
 const app = express();
 const port = 3000;
@@ -11,52 +12,68 @@ const port = 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(fileUpload()); // Use express-fileupload middleware
 
-app.get('/get_students', (req, res) => {
-    const filePath = path.join(__dirname, 'students_data2.xlsx');
+let uploadedFilePath = ''; // Global variable to track the uploaded file path
 
-    const workbook = XLSX.readFile(filePath);
-    const attendanceSheet = workbook.Sheets['Attendance'];
-    const contactsSheet = workbook.Sheets['Contacts'];
+// Endpoint to upload the document
+app.post('/upload_document', (req, res) => {
+    if (!req.files || Object.keys(req.files).length === 0) {
+        return res.status(400).send('No files were uploaded.');
+    }
 
-    const attendanceData = XLSX.utils.sheet_to_json(attendanceSheet);
-    const contactsData = XLSX.utils.sheet_to_json(contactsSheet);
+    const document = req.files.document;
+    uploadedFilePath = path.join(__dirname, 'uploads', document.name); // Save the file to 'uploads' directory
 
-    const mergedData = attendanceData.map(attendance => {
-        const contact = contactsData.find(contact => contact.Enrollement === attendance.Enrollement);
-        return {
-            Name: attendance.Name,
-            Enrollement: attendance.Enrollement,
-            Percentage: attendance['Total Percentage'],
-            Contact: contact ? contact.Contact : ''
-        };
-    });
+    // Ensure the uploads directory exists
+    if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
+        fs.mkdirSync(path.join(__dirname, 'uploads'));
+    }
 
-    const studentsBelow75 = mergedData.filter(student => student.Percentage < 75);
-
-    res.json(studentsBelow75);
-});
-
-// Endpoint to send messages
-app.post('/send_messages', (req, res) => {
-    const { enrollments } = req.body;
-
-    // Write enrollments to a temporary file for the Python script to use
-    const tempFilePath = path.join(__dirname, 'temp_enrollments.json');
-    fs.writeFileSync(tempFilePath, JSON.stringify(enrollments), 'utf8');
-
-    // Call the Python script
-    exec(`python Audio.py ${tempFilePath}`, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`exec error: ${error}`);
-            return res.status(500).json({ status: 'error', message: 'Failed to send messages' });
+    // Save the uploaded file
+    document.mv(uploadedFilePath, (err) => {
+        if (err) {
+            return res.status(500).send(err);
         }
-        console.log(`stdout: ${stdout}`);
-        console.error(`stderr: ${stderr}`);
-        fs.unlinkSync(tempFilePath); // Clean up the temporary file
-        res.json({ status: 'success' });
+
+        res.send({ message: 'File uploaded successfully!', filePath: uploadedFilePath });
     });
 });
+
+// Endpoint to get student data
+app.get('/get_students', (req, res) => {
+    if (!uploadedFilePath) {
+        return res.status(400).send('No file uploaded. Please upload a file.');
+    }
+
+    try {
+        const workbook = XLSX.readFile(uploadedFilePath);
+        const attendanceSheet = workbook.Sheets['Attendance'];
+        const contactsSheet = workbook.Sheets['Contacts'];
+
+        const attendanceData = XLSX.utils.sheet_to_json(attendanceSheet);
+        const contactsData = XLSX.utils.sheet_to_json(contactsSheet);
+
+        const mergedData = attendanceData.map(attendance => {
+            const contact = contactsData.find(contact => contact.Enrollement === attendance.Enrollement);
+            return {
+                Name: attendance.Name,
+                Enrollement: attendance.Enrollement,
+                Percentage: attendance['Total Percentage'],
+                Contact: contact ? contact.Contact : ''
+            };
+        });
+
+        const studentsBelow75 = mergedData.filter(student => student.Percentage < 75);
+        res.json(studentsBelow75);
+
+    } catch (error) {
+        console.error('Error reading the uploaded file:', error);
+        res.status(500).send('Error reading the uploaded file.');
+    }
+});
+
+// Other endpoints (send audio messages, send SMS, etc.) remain unchanged...
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));

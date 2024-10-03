@@ -1,39 +1,49 @@
 document.addEventListener('DOMContentLoaded', function() {
     const tableBody = document.querySelector('#studentTable tbody');
 
-    // Fetch student data from the backend
-    fetch('http://localhost:3000/get_students')
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log(data); // Check the structure and content
-        // Populate the table with student data
-        data.forEach(student => {
-            const row = document.createElement('tr');
+    // Function to fetch and display student data
+    function fetchAndDisplayStudents() {
+        fetch('http://localhost:3000/get_students')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Please upload the document to fetch the details. If not showing any option then check your network connection');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log(data); // Check the structure and content
 
-            // Inspect the actual value of 'Percentage'
-            console.log(student.Percentage);
+            // Clear the table before appending new data
+            tableBody.innerHTML = '';
 
-            // Convert and handle percentage value
-            const percentageFloat = parseFloat(student.Percentage);
-            const percent = !isNaN(percentageFloat) ? Math.round(percentageFloat) : 'N/A';
+            // Populate the table with student data
+            data.forEach(student => {
+                const row = document.createElement('tr');
 
-            row.innerHTML = `
-                <td>${student.Enrollment}</td>
-                <td>${student.Name}</td>
-                <td>${percent}%</td>
-            `;
-            tableBody.appendChild(row);
+                // Inspect the actual value of 'Percentage'
+                console.log(student.Percentage);
+                console.log(student.Enrollement);
+
+                // Convert and handle percentage value
+                const percentageFloat = parseFloat(student.Percentage);
+                const percent = !isNaN(percentageFloat) ? Math.round(percentageFloat) : 'N/A';
+
+                row.innerHTML = `
+                    <td>${student.Enrollement}</td>
+                    <td>${student.Name}</td>
+                    <td>${percent}%</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to load student data. Please try again later. Error: ' + error.message);
         });
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Failed to load student data. Please try again later. Error: ' + error.message);
-    });
+    }
+
+    // Fetch student data on page load
+    fetchAndDisplayStudents();
 
     // Event listener for the Send Audio Messages button
     document.getElementById('sendButton').addEventListener('click', function() {
@@ -103,7 +113,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 return response.json();
             })
-            .then(data => alert('Document uploaded successfully!'))
+            .then(data => {
+                alert('Document uploaded successfully!');
+                // Fetch and display the updated student data
+                fetchAndDisplayStudents();
+            })
             .catch(error => {
                 console.error('Error:', error);
                 alert('Failed to upload document. Please try again later. Error: ' + error.message);

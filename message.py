@@ -1,4 +1,5 @@
 import pandas as pd
+import sys
 import time
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -15,7 +16,16 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
 baseurl = "https://web.whatsapp.com"
 
-file_path = 'students_data2.xlsx'
+# file_path = 'students_data2.xlsx'
+
+if len(sys.argv) < 2:
+    print("Error: No file path provided.")
+    sys.exit(1)
+
+file_path = sys.argv[1]
+if not os.path.exists(file_path):
+    print(f"Error: File does not exist at {file_path}")
+    sys.exit(1)
 
 # Load the individual sheets into dataframes
 information_df = pd.read_excel(file_path, sheet_name='Information')

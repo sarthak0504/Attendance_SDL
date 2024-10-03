@@ -93,3 +93,14 @@ button:hover {
 #sendSmsButton:hover {
     background-color: #c82333;
 }
+
+.upload-section {
+    display: flex;
+    align-items: center;
+    margin-top: 20px;
+}
+
+#documentInput {
+    flex: 1;
+    margin-right: 10px;
+}

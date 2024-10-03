@@ -4,6 +4,7 @@ const XLSX = require('xlsx');
 const path = require('path');
 const { exec } = require('child_process');
 const fs = require('fs');
+const fileUpload = require('express-fileupload');  // Import express-fileupload
 
 const app = express();
 const port = 3000;
@@ -11,67 +12,116 @@ const port = 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(fileUpload()); // Use express-fileupload middleware
 
-app.get('/get_students', (req, res) => {
-    const filePath = path.join(__dirname, 'students_data2.xlsx');
+let uploadedFilePath = ''; // Global variable to track the uploaded file path
 
-    const workbook = XLSX.readFile(filePath);
-    const attendanceSheet = workbook.Sheets['Attendance'];
-    const contactsSheet = workbook.Sheets['Contacts'];
+// Endpoint to upload the document
+app.post('/upload_document', (req, res) => {
+    if (!req.files || Object.keys(req.files).length === 0) {
+        return res.status(400).send('No files were uploaded.');
+    }
 
-    const attendanceData = XLSX.utils.sheet_to_json(attendanceSheet);
-    const contactsData = XLSX.utils.sheet_to_json(contactsSheet);
+    const document = req.files.document;
+    uploadedFilePath = path.join(__dirname, 'uploads', document.name); // Save the file to 'uploads' directory
 
-    const mergedData = attendanceData.map(attendance => {
-        const contact = contactsData.find(contact => contact.Enrollement === attendance.Enrollement);
-        return {
-            Name: attendance.Name,
-            Enrollement: attendance.Enrollement,
-            Percentage: attendance['Total Percentage'],
-            Contact: contact ? contact.Contact : ''
-        };
+    // Ensure the uploads directory exists
+    if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
+        fs.mkdirSync(path.join(__dirname, 'uploads'));
+    }
+
+    // Save the uploaded file
+    document.mv(uploadedFilePath, (err) => {
+        if (err) {
+            return res.status(500).send(err);
+        }
+
+        res.send({ message: 'File uploaded successfully!', filePath: uploadedFilePath });
     });
-
-    const studentsBelow75 = mergedData.filter(student => student.Percentage < 75);
-
-    res.json(studentsBelow75);
 });
 
-// Endpoint to send audio messages
+// Endpoint to get student data
+app.get('/get_students', (req, res) => {
+    if (!uploadedFilePath) {
+        return res.status(400).send('No file uploaded. Please upload a file.');
+    }
+
+    try {
+        const workbook = XLSX.readFile(uploadedFilePath);
+        const attendanceSheet = workbook.Sheets['Attendance'];
+        const contactsSheet = workbook.Sheets['Contacts'];
+
+        const attendanceData = XLSX.utils.sheet_to_json(attendanceSheet);
+        const contactsData = XLSX.utils.sheet_to_json(contactsSheet);
+
+        const mergedData = attendanceData.map(attendance => {
+            const contact = contactsData.find(contact => contact.Enrollement === attendance.Enrollement);
+            return {
+                Name: attendance.Name,
+                Enrollement: attendance.Enrollement,
+                Percentage: attendance['Total Percentage'],
+                Contact: contact ? contact.Contact : ''
+            };
+        });
+
+        const studentsBelow75 = mergedData.filter(student => student.Percentage < 75);
+        res.json(studentsBelow75);
+
+    } catch (error) {
+        console.error('Error reading the uploaded file:', error);
+        res.status(500).send('Error reading the uploaded file.');
+    }
+});
+
+// Endpoint to send audio messages via Python script
 app.post('/send_messages', (req, res) => {
     const { enrollments } = req.body;
-    const tempFilePath = path.join(__dirname, 'temp_enrollments.json');
-    fs.writeFileSync(tempFilePath, JSON.stringify(enrollments), 'utf8');
 
-    const scriptPath = path.join(__dirname, 'Audio.py');
-    exec(`python ${scriptPath} ${tempFilePath}`, (error, stdout, stderr) => {
+    if (!uploadedFilePath) {
+        return res.status(400).send('No file uploaded.');
+    }
+
+    // Adjust path for Python if necessary
+    const pythonScriptPath = path.join(__dirname, 'Message_audio.py');
+    const command = `python ${pythonScriptPath} ${uploadedFilePath}`; 
+
+    exec(command, (error, stdout, stderr) => {
         if (error) {
-            console.error(`exec error: ${error.message}`);
-            console.error(`stderr: ${stderr}`);
-            return res.status(500).json({ status: 'error', message: 'Failed to send messages' });
+            console.error(`Error executing Python script: ${error.message}`);
+            return res.status(500).send('Failed to send audio messages.');
         }
-        console.log(`stdout: ${stdout}`);
-        fs.unlinkSync(tempFilePath);
-        res.json({ status: 'success' });
+        if (stderr) {
+            console.error(`Python script stderr: ${stderr}`);
+            return res.status(500).send('Failed to send audio messages.');
+        }
+        console.log(`Python script stdout: ${stdout}`);
+        res.send({ message: 'Audio messages sent successfully!' });
     });
 });
 
-// Endpoint to send SMS messages
-app.post('/send_sms_messages', (req, res) => {
-    const { enrollments } = req.body;
-    const tempFilePath = path.join(__dirname, 'temp_enrollments.json');
-    fs.writeFileSync(tempFilePath, JSON.stringify(enrollments), 'utf8');
 
-    const scriptPath = path.join(__dirname, 'message.py');
-    exec(`python ${scriptPath} ${tempFilePath}`, (error, stdout, stderr) => {
+// Endpoint to send SMS messages (similarly implement your logic for sending SMS)
+// Endpoint to send SMS messages via Python script
+app.post('/send_sms_messages', (req, res) => {
+    if (!uploadedFilePath) {
+        return res.status(400).send('No file uploaded.');
+    }
+
+    // Adjust path for Python if necessary
+    const pythonScriptPath = path.join(__dirname, 'message.py');
+    const command = `python ${pythonScriptPath} ${uploadedFilePath}`; 
+
+    exec(command, (error, stdout, stderr) => {
         if (error) {
-            console.error(`exec error: ${error.message}`);
-            console.error(`stderr: ${stderr}`);
-            return res.status(500).json({ status: 'error', message: 'Failed to send SMS messages' });
+            console.error(`Error executing Python script: ${error.message}`);
+            return res.status(500).send('Failed to send SMS messages.');
         }
-        console.log(`stdout: ${stdout}`);
-        fs.unlinkSync(tempFilePath);
-        res.json({ status: 'success' });
+        if (stderr) {
+            console.error(`Python script stderr: ${stderr}`);
+            return res.status(500).send('Failed to send SMS messages.');
+        }
+        console.log(`Python script stdout: ${stdout}`);
+        res.send({ message: 'SMS messages sent successfully!' });
     });
 });
 
