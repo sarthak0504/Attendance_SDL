@@ -12,6 +12,11 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             console.log(data); // Check the structure and content
+            if (data.length === 0) {
+                console.log('No students below 75% found.');
+                tableBody.innerHTML = '<tr><td colspan="3">No students found with attendance below 75%</td></tr>';
+                return;
+            }
 
             // Clear the table before appending new data
             tableBody.innerHTML = '';
@@ -21,8 +26,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const row = document.createElement('tr');
 
                 // Inspect the actual value of 'Percentage'
-                console.log(student.Percentage);
-                console.log(student.Enrollement);
+                // console.log(student.Percentage);
+                // console.log(student.Enrollement);
 
                 // Convert and handle percentage value
                 const percentageFloat = parseFloat(student.Percentage);
@@ -126,4 +131,33 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Please select a document to upload.');
         }
     });
+    //     const fileInput = document.getElementById('documentInput');
+    //     const formData = new FormData();
+
+    //     if (fileInput.files.length > 0) {
+    //         formData.append('document', fileInput.files[0]);
+
+    //         fetch('http://localhost:3000/upload_document', {
+    //             method: 'POST',
+    //             body: formData
+    //         })
+    //         .then(response => {
+    //             if (!response.ok) {
+    //                 throw new Error('Failed to upload document');
+    //             }
+    //             return response.json();
+    //         })
+    //         .then(data => {
+    //             alert('Document uploaded successfully!');
+    //             // Fetch and display the updated student data
+    //             fetchAndDisplayStudents();
+    //         })
+    //         .catch(error => {
+    //             console.error('Error:', error);
+    //             alert('Failed to upload document. Please try again later. Error: ' + error.message);
+    //         });
+    //     } else {
+    //         alert('Please select a document to upload.');
+    //     }
+    // });
 });
