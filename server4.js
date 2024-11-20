@@ -12,29 +12,28 @@ const port = 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(fileUpload()); // Use express-fileupload middleware
+app.use(fileUpload());
 
 
 console.log('hello');
-let uploadedFilePath = ''; // Global variable to track the uploaded file path
+let uploadedFilePath = ''; 
 
 // Endpoint to upload the document
 app.post('/upload_document', (req, res) => {
-    console.log('POST /upload_document called'); // Log when the endpoint is hit
+    console.log('POST /upload_document called'); 
     if (!req.files || Object.keys(req.files).length === 0) {
-        console.log('No files were uploaded.'); // Log if no files uploaded
+        console.log('No files were uploaded.');
         return res.status(400).send('No files were uploaded.');
     }
 
     const document = req.files.document;
     uploadedFilePath = path.join(__dirname, 'uploads', document.name);
 
-    console.log("Uploaded File Path:", uploadedFilePath); // Log the file path
-
+    console.log("Uploaded File Path:", uploadedFilePath); 
     // Ensure the uploads directory exists
     if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
         fs.mkdirSync(path.join(__dirname, 'uploads'));
-        console.log('Uploads directory created.'); // Log directory creation
+        console.log('Uploads directory created.'); 
     }
 
     // Save the uploaded file
@@ -197,7 +196,7 @@ app.post('/send_sms_messages', (req, res) => {
     }
 
     // Adjust path for Python if necessary
-    const pythonScriptPath = path.join(__dirname, 'message.py');
+    const pythonScriptPath = path.join(__dirname, 'test.py');
     const command = `python ${pythonScriptPath} ${uploadedFilePath}`; 
 
     exec(command, (error, stdout, stderr) => {
